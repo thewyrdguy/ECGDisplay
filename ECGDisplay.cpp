@@ -1,8 +1,19 @@
 #include <ArduinoBLE.h>
+#include <TimerEvent.h>
+#include "Display.h"
+
+#define FPS 25
 
 #define F_HR16 0x01
 #define F_HAS_ENERGY 0x08
 #define F_HAS_RRI 0x10
+
+TimerEvent updateEvent;
+uint16_t hr;
+
+void updateFrame() {
+  displayFrame(hr);
+}
 
 void hrmData(BLEDevice device, BLECharacteristic characteristic) {
 #if 0
@@ -20,7 +31,6 @@ void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   uint8_t const *data = characteristic.value();
   int const datalen = characteristic.valueLength();
   uint8_t const *end = data + datalen;
-  uint16_t hr;
   uint16_t energy;
   uint16_t rri[10];
   int rris;
@@ -73,6 +83,8 @@ void setup() {
     while (1);
   }
   Serial.println("BLE Central for chest strap HRM");
+  displayInit();
+  updateEvent.set(1000/FPS, updateFrame);
 }
 
 void loop() {
@@ -101,11 +113,6 @@ void loop() {
             characteristic.setEventHandler(BLEUpdated, hrmData);
             characteristic.subscribe();
             Serial.println("subscribed to 2a37");
-            while (peripheral.connected())
-              BLE.poll();
-            Serial.println("No longer connected");
-            peripheral.disconnect();
-            return;
           } else {
             Serial.println("Not subscribable");
             peripheral.disconnect();
@@ -129,5 +136,12 @@ void loop() {
     Serial.println("Peripheral not available");
     delay(5000);
   }
+  while (peripheral.connected()) {
+    BLE.poll();
+    updateEvent.update();
+    displayTimerHandler();
+  }
+  Serial.println("No longer connected");
+  peripheral.disconnect();
   Serial.println("Dropped off the loop");
 }
