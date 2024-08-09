@@ -1,7 +1,6 @@
-#include <Arduino.h>
 #include "Display.h"
-#include <lvgl.h>
 #include "rm67162.h"
+#include <TFT_eSPI.h>
 #include "pins_config.h"
 
 #if ARDUINO_USB_CDC_ON_BOOT != 1
@@ -12,44 +11,70 @@
 #error "Detected that PSRAM is not turned on. Please set PSRAM to OPI PSRAM in ArduinoIDE"
 #endif
 
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t *buf;
-static lv_disp_drv_t disp_drv;
+#define WIDTH  536  // TFT_WIDTH
+#define HEIGHT 240  // TFT_HEIGHT
+#define FONTNO 4
+#define WWIDTH 450
 
-static void disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
-    uint32_t w = (area->x2 - area->x1 + 1);
-    uint32_t h = (area->y2 - area->y1 + 1);
-    lcd_PushColors(area->x1, area->y1, w, h, (uint16_t *)&color_p->full);
-    lv_disp_flush_ready(disp);
-}
-
-void displayTimerHandler(void) {
-  lv_timer_handler();
-}
-
-#define LVGL_LCD_BUF_SIZE (TFT_WIDTH * TFT_HEIGHT)
+TFT_eSPI tft = TFT_eSPI();
+TFT_eSprite spr = TFT_eSprite(&tft);
 
 void displayInit() {
+  char *hello[] = {"TheWyrdGuy", "Productions", "2024", NULL};
+
+  pinMode(PIN_LED, OUTPUT);
+  digitalWrite(PIN_LED, HIGH); // Power up AMOLED
   rm67162_init(); // amoled lcd initialization
   lcd_setRotation(1);
-  lv_init();
-  buf = (lv_color_t *)ps_malloc(sizeof(lv_color_t) * LVGL_LCD_BUF_SIZE);
-  assert(buf);
-  lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_LCD_BUF_SIZE);
-  /*Initialize the display*/
-  static lv_disp_drv_t disp_drv;
-  lv_disp_drv_init(&disp_drv);
-  disp_drv.hor_res = TFT_HEIGHT;
-  disp_drv.ver_res = TFT_WIDTH;
-  disp_drv.flush_cb = disp_flush;
-  disp_drv.draw_buf = &draw_buf;
-  lv_disp_drv_register(&disp_drv);
+  spr.createSprite(WIDTH, HEIGHT);
+  spr.setSwapBytes(1);
+
+  spr.fillSprite(TFT_NAVY);
+  spr.setTextColor(TFT_LIGHTGREY);
+  spr.setTextSize(2);
+  spr.setTextFont(FONTNO);
+  spr.setTextDatum(4);  // Middle
+  int vstep = spr.fontHeight(FONTNO);
+  int vpos = spr.height() / 2 - vstep;
+  for (int i = 0; hello[i]; i++) {
+    spr.drawString(hello[i], spr.width() / 2, vpos, 4);
+    vpos += vstep;
+  }
+  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
 void displayOff(void) {
+  char *farewell = "No HRM, power off";
+
+  spr.fillSprite(TFT_BLACK);
+  spr.setTextColor(TFT_RED);
+  spr.setTextSize(2);
+  spr.setTextFont(FONTNO);
+  spr.drawString(farewell, spr.width() / 2, spr.height() / 2, 4);
+  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
+  delay(2000);
   lcd_sleep();
+  digitalWrite(PIN_LED, LOW);
+}
+
+void displayStart(void) {
+  spr.fillSprite(TFT_DARKGREY);
+  spr.drawRect(0, 0, WWIDTH + 2, spr.height(), TFT_NAVY);
+  spr.fillRect(1, 1, WWIDTH , spr.height() - 2, TFT_BLACK);
+  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
+}
+
+void displayLost(void) {
+  char *lost = "No Connection";
+
+  spr.fillSprite(TFT_BLACK);
+  spr.setTextColor(TFT_RED);
+  spr.setTextSize(2);
+  spr.setTextFont(FONTNO);
+  spr.drawString(lost, spr.width() / 2, spr.height() / 2, 4);
+  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
 void displayFrame(int hr) {
-  ;
+  //Serial.print(".");
 }

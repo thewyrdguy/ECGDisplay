@@ -1,6 +1,7 @@
 #include <ArduinoBLE.h>
 #include <TimerEvent.h>
 #include "Display.h"
+#include "pins_config.h"
 
 #define FPS 25
 
@@ -116,6 +117,7 @@ void loop() {
             characteristic.subscribe();
             Serial.println("subscribed to 2a37");
             failures = 0;
+            displayStart();
           } else {
             Serial.println("Not subscribable");
             peripheral.disconnect();
@@ -148,9 +150,8 @@ void loop() {
   while (peripheral.connected()) {
     BLE.poll();
     updateEvent.update();
-    displayTimerHandler();
   }
-  Serial.println("No longer connected");
+  displayLost();
+  Serial.println("No longer connected, try from the beginning");
   peripheral.disconnect();
-  Serial.println("Dropped off the loop");
 }
