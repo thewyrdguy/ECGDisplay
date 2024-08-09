@@ -46,6 +46,10 @@ void displayInit() {
   lv_disp_drv_register(&disp_drv);
 }
 
+void displayOff(void) {
+  lcd_sleep();
+}
+
 void displayFrame(int hr) {
   ;
 }

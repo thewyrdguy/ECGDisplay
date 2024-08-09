@@ -9,6 +9,8 @@
 #define F_HAS_RRI 0x10
 
 TimerEvent updateEvent;
+int failures = 0;
+
 uint16_t hr;
 
 void updateFrame() {
@@ -113,6 +115,7 @@ void loop() {
             characteristic.setEventHandler(BLEUpdated, hrmData);
             characteristic.subscribe();
             Serial.println("subscribed to 2a37");
+            failures = 0;
           } else {
             Serial.println("Not subscribable");
             peripheral.disconnect();
@@ -134,7 +137,13 @@ void loop() {
     }
   } else {
     Serial.println("Peripheral not available");
+    if (failures++ > 10) {
+      Serial.println("Switching off to save power");
+      displayOff();
+      esp_deep_sleep_start();
+    }
     delay(5000);
+    return;
   }
   while (peripheral.connected()) {
     BLE.poll();
