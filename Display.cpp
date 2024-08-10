@@ -15,12 +15,18 @@
 #define HEIGHT 240  // TFT_HEIGHT
 #define FONTNO 4
 #define WWIDTH 450
+#define TFT_DARK 0x4208  // RGB 64,64,64
+
+extern uint16_t hr;
+static uint16_t oldhr = 0;
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
+TFT_eSprite nspr = TFT_eSprite(&tft);
 
 void displayInit() {
-  char *hello[] = {"TheWyrdGuy", "Productions", "2024", NULL};
+  char *hello[] = {"The Wyrd Guy's", "Contraptions", NULL};
+  char url[] = "https://www.github.com/thewyrdguy/";
 
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH); // Power up AMOLED
@@ -40,6 +46,16 @@ void displayInit() {
     spr.drawString(hello[i], spr.width() / 2, vpos, 4);
     vpos += vstep;
   }
+  spr.setTextSize(1);
+  spr.drawString(url, spr.width() / 2, vpos, 4);
+
+  nspr.createSprite(spr.textWidth("555", FONTNO), spr.fontHeight(FONTNO));
+  nspr.setSwapBytes(1);
+  nspr.setTextColor(TFT_YELLOW);
+  nspr.setTextSize(1);
+  nspr.setTextFont(FONTNO);
+  nspr.setTextDatum(4);
+
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
@@ -58,14 +74,13 @@ void displayOff(void) {
 }
 
 void displayStart(void) {
-  spr.fillSprite(TFT_DARKGREY);
-  spr.drawRect(0, 0, WWIDTH + 2, spr.height(), TFT_NAVY);
-  spr.fillRect(1, 1, WWIDTH , spr.height() - 2, TFT_BLACK);
+  spr.fillSprite(TFT_BLACK);
+  spr.drawSmoothRoundRect(0, 0, 8, 5, WWIDTH + 8, spr.height() - 1, TFT_NAVY, TFT_BLACK);
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
-void displayLost(void) {
-  char *lost = "No Connection";
+void displayConn(void) {
+  char *lost = "Trying to connect";
 
   spr.fillSprite(TFT_BLACK);
   spr.setTextColor(TFT_RED);
@@ -75,6 +90,17 @@ void displayLost(void) {
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
+static void displayHR(uint16_t hr) {
+  nspr.fillSprite(TFT_BLACK);
+  nspr.drawNumber(hr, nspr.width() / 2, nspr.height() / 2);
+  lcd_PushColors(WWIDTH + 32, 20, nspr.width(), nspr.height(), (uint16_t *)nspr.getPointer());
+}
+
 void displayFrame(int hr) {
-  //Serial.print(".");
+  if (hr != oldhr) {
+    Serial.print("HR change: ");
+    Serial.println(hr);
+    displayHR(hr);
+    oldhr = hr;
+  }
 }
