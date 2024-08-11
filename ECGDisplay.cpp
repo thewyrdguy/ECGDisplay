@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <ArduinoBLE.h>
 #include <TimerEvent.h>
+#include "Data.h"
 #include "Display.h"
 #include "HRM.h"
 #include "pins_config.h"
@@ -9,10 +10,8 @@
 
 static TimerEvent updateEvent;
 
-uint16_t hr;
-
 void updateFrame() {
-  displayFrame(hr);
+  displayFrame(millis());
 }
 
 void setup() {
