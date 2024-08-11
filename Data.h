@@ -1,9 +1,6 @@
 #pragma once
 
-extern uint16_t hr;
-extern uint16_t energy;
-extern int rssi;
-
-extern void dataSend(uint16_t hr, uint16_t energy, int rssi, int rris, uint16_t *rri);
+extern void dataSend(uint16_t hr, uint16_t energy, int rssi, int num, int8_t *samples);
 extern uint16_t getHR(void);
 extern int getRSSI(void);
+extern int8_t *getSamples(int num);

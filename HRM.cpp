@@ -10,6 +10,22 @@
 
 static BLECharacteristic characteristic;
 
+#define SBUFSIZE 1024
+static int8_t samples[SBUFSIZE];
+
+static void makeSamples(int rris, uint16_t rri[], int *nump, int8_t sampp[]) {
+  int wp = 0;
+
+  for (int i = 0; i < rris; i++) {
+    // RR Interval comes in 1/1024 of a second. We want SPS (150 / sec) samples.
+    int num = rri[i] * SPS / 1024;  // maybe we can do better if we keep running time in 1/1024 sec...
+    for (int j = 0; (j < num) && (wp < *nump); j++, wp++)
+      sampp[wp] = j < 15 ? 200 : (j < 30 ? -200 : 0);
+  }
+  //Serial.print("Total samples ");Serial.print(wp); Serial.print(" of max ");Serial.println(*nump);
+  (*nump) = wp;
+}
+
 static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
 #if 0
   Serial.print("value updated: ");
@@ -61,7 +77,6 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   rssi = (device.rssi() + 100) / 10;
   if (rssi < 0) rssi = 0;
   if (rssi > 4) rssi = 4;
-  dataSend(hr, energy, rssi, rris, rri);
 
   Serial.print("RSSI: ");
   Serial.print(rssi);
@@ -77,6 +92,10 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
     Serial.print(rri[i]);
   }
   Serial.println();
+
+  int num = SBUFSIZE;
+  makeSamples(rris, rri, &num, samples);
+  dataSend(hr, energy, rssi, num, samples);
 }
 
 void hrmInit(BLEDevice *peripheral) {

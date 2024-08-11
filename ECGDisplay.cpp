@@ -6,8 +6,6 @@
 #include "HRM.h"
 #include "pins_config.h"
 
-#define FPS 25
-
 static TimerEvent updateEvent;
 
 void updateFrame() {

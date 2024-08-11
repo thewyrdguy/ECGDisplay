@@ -16,11 +16,13 @@
 #define HEIGHT 240  // TFT_HEIGHT
 #define FONTNO 4
 #define WWIDTH 450
+#define FWIDTH (SPS / FPS)
 #define TFT_DARK 0x4208  // RGB 64,64,64
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 TFT_eSprite nspr = TFT_eSprite(&tft);
+TFT_eSprite espr = TFT_eSprite(&tft);
 TFT_eSprite rspr = TFT_eSprite(&tft);
 
 void displayInit() {
@@ -58,6 +60,9 @@ void displayInit() {
   rspr.createSprite(40, 15);
   rspr.setSwapBytes(1);
 
+  espr.createSprite(FWIDTH, HEIGHT - 10);
+  espr.setSwapBytes(1);
+
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
@@ -93,6 +98,35 @@ void displayConn(void) {
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
+static int dpos = 0;
+static int oldvpos = 127;
+
+static void displaySamples(int num, int8_t *samples) {
+  for (int i = 0; i < num; i++) {
+    int vpos = samples[i] + 127;
+    int hcoord, height;
+    if (vpos > 235) vpos = 235;
+    if (vpos < 5) vpos = 5;
+    if (oldvpos < vpos) {  // old is on the top
+      hcoord = oldvpos;
+      height = vpos - oldvpos;
+    } else {
+      hcoord = vpos;
+      height = oldvpos - vpos;
+    }
+    if (height == 0) height = 1;
+    espr.drawFastVLine(i, 0, espr.height(), TFT_BLACK);
+    espr.drawFastVLine(i, hcoord, height, TFT_GREEN); // on top
+    oldvpos = vpos;
+  }
+  lcd_PushColors(dpos + 5, 5, espr.width(), espr.height(), (uint16_t *)espr.getPointer());
+  dpos += num;
+  if (dpos >= WWIDTH) dpos = 0;
+  espr.drawFastVLine(0, 0, espr.height(), TFT_DARKGREY);
+  espr.fillRect(1, 0, num - 1, espr.height(), TFT_BLACK);
+  lcd_PushColors(dpos + 5, 5, espr.width(), espr.height(), (uint16_t *)espr.getPointer());
+}
+
 static void displayHR(uint16_t hr) {
   nspr.fillSprite(TFT_BLACK);
   nspr.drawNumber(hr, nspr.width() / 2, nspr.height() / 2);
@@ -115,6 +149,8 @@ static int oldrssi = 0;
 void displayFrame(unsigned long ms) {
   uint16_t hr = getHR();
   int rssi = getRSSI();
+  int8_t *samples = getSamples(FWIDTH);
+  displaySamples(FWIDTH, samples);
   if (hr != oldhr) {
     Serial.print("HR change: ");
     Serial.println(hr);
