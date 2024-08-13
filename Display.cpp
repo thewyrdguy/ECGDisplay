@@ -25,6 +25,7 @@ TFT_eSprite nspr = TFT_eSprite(&tft);
 TFT_eSprite rspr = TFT_eSprite(&tft);
 TFT_eSprite espr = TFT_eSprite(&tft);
 TFT_eSprite bspr = TFT_eSprite(&tft);
+TFT_eSprite lspr = TFT_eSprite(&tft);
 
 void displayInit() {
   char *hello[] = {"The Wyrd Guy's", "Contraptions", NULL};
@@ -147,23 +148,26 @@ static void displayRSSI(int rssi) {
   lcd_PushColors(WWIDTH + 35, 20, rspr.width(), rspr.height(), (uint16_t *)rspr.getPointer());
 }
 
-static void displayBatt(uint8_t batt) {
+static void displayBatt(uint8_t batt, int botm) {
   uint16_t colour = batt >= 15 ? TFT_GREEN : TFT_RED;
 
   if (batt > 100) batt = 100;
+  bspr.fillSprite(TFT_BLACK);
   bspr.drawRect(0, 0, bspr.width(), bspr.height(), colour);
   bspr.fillRect(0, 0, bspr.width() * batt / 100, bspr.height(), colour);
-  lcd_PushColors(WWIDTH + 35, HEIGHT - 40, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
+  lcd_PushColors(WWIDTH + 35, HEIGHT - botm, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
 }
 
 static uint16_t oldhr = 0;
 static int oldrssi = 0;
 static uint8_t oldbatt = 0;
+static uint8_t oldlbat = 0;
 
 void displayFrame(unsigned long ms) {
   uint16_t hr = getHR();
   int rssi = getRSSI();
   int batt = getBatt();
+  int lbat = getBatt();
   int8_t *samples = getSamples(FWIDTH);
   displaySamples(FWIDTH, samples);
   if (hr != oldhr) {
@@ -181,7 +185,13 @@ void displayFrame(unsigned long ms) {
   if (batt != oldbatt) {
     Serial.print("Batt change ");
     Serial.println(batt);
-    displayBatt(batt);
+    displayBatt(batt, 60);
     oldbatt = batt;
+  }
+  if (lbat != oldlbat) {
+    Serial.print("Local Batt change ");
+    Serial.println(lbat);
+    displayBatt((lbat - 270) * 100 / 70, 35);
+    oldlbat = lbat;
   }
 }

@@ -7,13 +7,27 @@
 #include "Batt.h"
 #include "pins_config.h"
 
+static TimerEvent battReadEvent;
 static TimerEvent updateEvent;
 
-void updateFrame() {
+void readBatt(void) {
+  uint16_t batt = analogRead(PIN_BAT_VOLT);
+  Serial.print("Local battery "); Serial.println(batt);
+  // int vref = 1100;
+  // esp_adc_cal_characteristics_t adc_chars;
+  // esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+  // if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+  //    vref = adc_chars.vref;
+  // }
+  // float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
+  lbatSend(batt * 726 / 4095);
+}
+
+void updateFrame(void) {
   displayFrame(millis());
 }
 
-void setup() {
+void setup(void) {
   Serial.begin(921600);
   // while (!Serial);
   if (!BLE.begin()) {
@@ -22,12 +36,13 @@ void setup() {
   }
   Serial.println("BLE Central for chest strap HRM");
   displayInit();
+  battReadEvent.set(10000, readBatt);
   updateEvent.set(1000/FPS, updateFrame);
 }
 
 static BLEDevice peripheral;
 
-void loop() {
+void loop(void) {
   while (!peripheral.connected()) {
     Serial.println("Looking for the sensor");
     for (int retries = 10; ; retries--) {
@@ -53,5 +68,6 @@ void loop() {
   }
   // Serial.println("Connected to the sensor, staring poll");
   BLE.poll();
+  battReadEvent.update();
   updateEvent.update();
 }
