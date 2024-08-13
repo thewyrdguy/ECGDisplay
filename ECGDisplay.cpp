@@ -4,6 +4,7 @@
 #include "Data.h"
 #include "Display.h"
 #include "HRM.h"
+#include "Batt.h"
 #include "pins_config.h"
 
 static TimerEvent updateEvent;
@@ -34,6 +35,7 @@ void loop() {
       Serial.print("Checking after hrmInit, peripheral is ");
       Serial.println(peripheral.connected() ? "connected" : "not connected");
       if (peripheral.connected()) {
+        battInit(&peripheral);
         displayStart();
         break;
       }

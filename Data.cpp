@@ -10,7 +10,7 @@ static std::mutex mtx;
 static uint16_t hr = 0;
 static uint16_t energy = 0;
 static int rssi = 0;
-static int batt = 0;
+static uint8_t batt = 0;
 
 #define BUFSIZE 384  // 2.7 seconds worth of data at 150 SPS
 static int8_t samples[BUFSIZE] = {};  // +/- 127 should be enough for display that is 240 px high
@@ -43,6 +43,11 @@ void dataSend(uint16_t p_hr, uint16_t p_energy, int p_rssi, int p_num, int8_t *p
   }
 }
 
+void battSend(uint8_t p_batt) {
+  std::lock_guard<std::mutex> lck(mtx);
+  batt = p_batt;
+}
+
 uint16_t getHR(void) {
   std::lock_guard<std::mutex> lck(mtx);
   return hr;
@@ -51,6 +56,11 @@ uint16_t getHR(void) {
 int getRSSI(void) {
   std::lock_guard<std::mutex> lck(mtx);
   return rssi;
+}
+
+uint8_t getBatt(void) {
+  std::lock_guard<std::mutex> lck(mtx);
+  return batt;
 }
 
 #define MAXSAMP 8  // It's 6 for 150 Hz, 25 fps, or 5 for 30 fps.
