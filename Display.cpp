@@ -112,7 +112,7 @@ static int oldvpos = 127;
 
 static void displaySamples(int num, int8_t *samples) {
   for (int i = 0; i < num; i++) {
-    int vpos = samples[i] + 127;
+    int vpos = 120 - samples[i];
     int hcoord, height;
     if (vpos > 235) vpos = 235;
     if (vpos < 5) vpos = 5;

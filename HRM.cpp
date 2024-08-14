@@ -10,21 +10,36 @@
 
 static BLECharacteristic characteristic;
 
-#define SBUFSIZE 1024
-static int8_t samples[SBUFSIZE];
+static int8_t beat[] = {0, 0, 1, 1, 2, 3, 2, 2, 3, 4, 5, 4, 1, -1, -2, -2, -2, -1, -2, -3, -4, -2,
+                        0, -1, -6, -6, 13, 55, 99, 114, 90, 39, -5, -21, -14, -2, 3, 2, 0, 0, 0, 0,
+                        0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 17, 19, 21, 24, 27, 29,
+                        32, 35, 38, 41, 44, 46, 49, 51, 50, 47, 42, 35, 27, 19, 12, 5, 4, 3, 2, 0,
+                        -2, -3, -5, -5, -5, -4, -3, -2, -2, -1, -1, 0};
 
 static void makeSamples(int rris, uint16_t rri[], int *nump, int8_t sampp[]) {
-  int wp = 0;
+  int filled = 0;
+  int avail = *nump;
 
   for (int i = 0; i < rris; i++) {
     // RR Interval comes in 1/1024 of a second. We want SPS (150 / sec) samples.
     int num = rri[i] * SPS / 1024;  // maybe we can do better if we keep running time in 1/1024 sec...
-    for (int j = 0; (j < num) && (wp < *nump); j++, wp++)
-      sampp[wp] = j < 15 ? 200 : (j < 30 ? -200 : 0);
+    //for (int j = 0; (j < num) && (wp < *nump); j++, wp++)
+    //  sampp[wp] = j < 15 ? 200 : (j < 30 ? -200 : 0);
+    if (num > avail) num = avail;
+    int to_copy = sizeof(beat);
+    if (to_copy > num) to_copy = num;
+    int remains = num - to_copy;
+    memcpy(sampp + filled, beat, to_copy);
+    if (remains) memset(sampp + filled + to_copy, 0, remains);
+    filled += num;
+    avail -= num;
   }
   //Serial.print("Total samples ");Serial.print(wp); Serial.print(" of max ");Serial.println(*nump);
-  (*nump) = wp;
+  (*nump) = filled;
 }
+
+#define SBUFSIZE 1024
+static int8_t samples[SBUFSIZE];
 
 static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
 #if 0
