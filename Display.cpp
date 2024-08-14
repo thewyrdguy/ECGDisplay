@@ -25,7 +25,6 @@ TFT_eSprite nspr = TFT_eSprite(&tft);
 TFT_eSprite rspr = TFT_eSprite(&tft);
 TFT_eSprite espr = TFT_eSprite(&tft);
 TFT_eSprite bspr = TFT_eSprite(&tft);
-TFT_eSprite lspr = TFT_eSprite(&tft);
 
 void displayInit() {
   char *hello[] = {"The Wyrd Guy's", "Contraptions", NULL};
@@ -62,8 +61,13 @@ void displayInit() {
   rspr.createSprite(40, 15);
   rspr.setSwapBytes(1);
 
-  bspr.createSprite(40, 15);
+  bspr.createSprite(spr.textWidth("555", FONTNO), spr.fontHeight(FONTNO));
+  //bspr.createSprite(40, 15);
   bspr.setSwapBytes(1);
+  bspr.setTextColor(TFT_DARKGREY);
+  bspr.setTextSize(1);
+  bspr.setTextFont(FONTNO);
+  bspr.setTextDatum(4);
 
   espr.createSprite(FWIDTH, HEIGHT - 10);
   espr.setSwapBytes(1);
@@ -149,13 +153,14 @@ static void displayRSSI(int rssi) {
 }
 
 static void displayBatt(uint8_t batt, int botm) {
-  uint16_t colour = batt >= 15 ? TFT_GREEN : TFT_RED;
+  uint16_t colour = batt >= 15 ? TFT_DARKGREEN : TFT_RED;
 
   if (batt > 100) batt = 100;
   bspr.fillSprite(TFT_BLACK);
   bspr.drawRect(0, 0, bspr.width(), bspr.height(), colour);
   bspr.fillRect(0, 0, bspr.width() * batt / 100, bspr.height(), colour);
-  lcd_PushColors(WWIDTH + 35, HEIGHT - botm, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
+  bspr.drawNumber(batt, bspr.width() / 2, bspr.height() / 2);
+  lcd_PushColors(WWIDTH + 30, HEIGHT - botm, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
 }
 
 static uint16_t oldhr = 0;
@@ -167,7 +172,7 @@ void displayFrame(unsigned long ms) {
   uint16_t hr = getHR();
   int rssi = getRSSI();
   int batt = getBatt();
-  int lbat = getBatt();
+  int lbat = getLbat();
   int8_t *samples = getSamples(FWIDTH);
   displaySamples(FWIDTH, samples);
   if (hr != oldhr) {
@@ -185,13 +190,13 @@ void displayFrame(unsigned long ms) {
   if (batt != oldbatt) {
     Serial.print("Batt change ");
     Serial.println(batt);
-    displayBatt(batt, 60);
+    displayBatt(batt, 70);
     oldbatt = batt;
   }
   if (lbat != oldlbat) {
     Serial.print("Local Batt change ");
     Serial.println(lbat);
-    displayBatt((lbat - 270) * 100 / 70, 35);
+    displayBatt(lbat, 40);
     oldlbat = lbat;
   }
 }

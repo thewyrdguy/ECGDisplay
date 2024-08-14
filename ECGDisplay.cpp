@@ -12,7 +12,10 @@ static TimerEvent updateEvent;
 
 void readBatt(void) {
   uint16_t batt = analogRead(PIN_BAT_VOLT);
-  Serial.print("Local battery "); Serial.println(batt);
+  int nbat = (batt * 1000 / 6206) - 300;
+  if (nbat < 0) nbat = 0;
+  if (nbat > 100) nbat = 100;
+  Serial.print("Local battery (raw) "); Serial.print(batt); Serial.print(" norm "); Serial.println(nbat);
   // int vref = 1100;
   // esp_adc_cal_characteristics_t adc_chars;
   // esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
@@ -20,7 +23,7 @@ void readBatt(void) {
   //    vref = adc_chars.vref;
   // }
   // float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
-  lbatSend(batt * 726 / 4095);
+  lbatSend(nbat);
 }
 
 void updateFrame(void) {
