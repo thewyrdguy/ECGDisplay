@@ -7,6 +7,8 @@
 #include "Batt.h"
 #include "pins_config.h"
 
+static unsigned long idle_since;
+
 static TimerEvent battReadEvent;
 static TimerEvent updateEvent;
 
@@ -24,10 +26,50 @@ void readBatt(void) {
   // }
   // float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
   lbatSend(nbat);
+  // Use the opportunity to check disconnected time
+  if (idle_since && millis() - idle_since > 50000) {
+    Serial.println("Switching off to save power");
+    displayOff();
+    esp_deep_sleep_start();
+  }
 }
 
 void updateFrame(void) {
   displayFrame(millis());
+}
+
+void discHandler(BLEDevice dev) {
+  displayConn();
+  BLE.scan(false);
+  idle_since = millis();
+  Serial.println("Disconnected, looking for the sensor");
+}
+
+void advHandler(BLEDevice dev) {
+  Serial.print("Found ");
+  Serial.print(dev.address());
+  Serial.print(" '");
+  Serial.print(dev.localName());
+  Serial.print("' ");
+  Serial.print(dev.advertisedServiceUuid());
+  Serial.println();
+  if (dev.advertisedServiceUuid() == "180d") {
+    Serial.print("Found HRM sensor... ");
+    BLE.stopScan();
+    if (dev.connect() && dev.connected()) {
+      Serial.println("connected");
+      if (hrmInit(&dev)) {
+        battInit(&dev);
+        displayStart();
+        idle_since = 0UL;
+      } else {
+        Serial.println("Could not intialize, disconnecting");
+        // dev.disconnect();
+      }
+    } else {
+      Serial.println("Could not connect");
+    }
+  }
 }
 
 void setup(void) {
@@ -41,35 +83,15 @@ void setup(void) {
   displayInit();
   battReadEvent.set(10000, readBatt);
   updateEvent.set(1000/FPS, updateFrame);
+  // Initiate discovery
+  BLE.setEventHandler(BLEDiscovered, advHandler);
+  BLE.setEventHandler(BLEDisconnected, discHandler);
+  BLE.scan(false);
+  idle_since = millis();
+  Serial.println("Looking for the sensor");
 }
 
-static BLEDevice peripheral;
-
 void loop(void) {
-  while (!peripheral.connected()) {
-    Serial.println("Looking for the sensor");
-    for (int retries = 10; ; retries--) {
-      hrmInit(&peripheral);
-      Serial.print("Checking after hrmInit, peripheral is ");
-      Serial.println(peripheral.connected() ? "connected" : "not connected");
-      if (peripheral.connected()) {
-        battInit(&peripheral);
-        displayStart();
-        break;
-      }
-      if (retries) {
-       Serial.print("No sensor, remaining attempts: ");
-        Serial.println(retries);
-        delay(5000);
-        displayConn();
-      } else {
-        Serial.println("Switching off to save power");
-        displayOff();
-        esp_deep_sleep_start();
-      }
-    }
-  }
-  // Serial.println("Connected to the sensor, staring poll");
   BLE.poll();
   battReadEvent.update();
   updateEvent.update();

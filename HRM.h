@@ -1,3 +1,3 @@
 #pragma once
 
-extern void hrmInit(BLEDevice *peripheral);
+extern bool hrmInit(BLEDevice *peripheral);

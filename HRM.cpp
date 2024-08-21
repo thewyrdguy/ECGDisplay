@@ -10,11 +10,11 @@
 
 static BLECharacteristic characteristic;
 
-static int8_t beat[] = {0, 0, 1, 1, 2, 3, 2, 2, 3, 4, 5, 4, 1, -1, -2, -2, -2, -1, -2, -3, -4, -2,
-                        0, -1, -6, -6, 13, 55, 99, 114, 90, 39, -5, -21, -14, -2, 3, 2, 0, 0, 0, 0,
-                        0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 17, 19, 21, 24, 27, 29,
-                        32, 35, 38, 41, 44, 46, 49, 51, 50, 47, 42, 35, 27, 19, 12, 5, 4, 3, 2, 0,
-                        -2, -3, -5, -5, -5, -4, -3, -2, -2, -1, -1, 0};
+static int8_t beat[] = { 0, 0, 1, 1, 2, 3, 2, 2, 3, 4, 5, 4, 1, -1, -2, -2, -2, -1, -2, -3, -4, -2,
+                         0, -1, -6, -6, 13, 55, 99, 114, 90, 39, -5, -21, -14, -2, 3, 2, 0, 0, 0, 0,
+                         0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 17, 19, 21, 24, 27, 29,
+                         32, 35, 38, 41, 44, 46, 49, 51, 50, 47, 42, 35, 27, 19, 12, 5, 4, 3, 2, 0,
+                         -2, -3, -5, -5, -5, -4, -3, -2, -2, -1, -1, 0 };
 
 static void makeSamples(int rris, uint16_t rri[], int *nump, int8_t sampp[]) {
   int filled = 0;
@@ -113,45 +113,22 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   dataSend(hr, energy, rssi, num, samples);
 }
 
-void hrmInit(BLEDevice *peripheral) {
-  BLE.scanForUuid("180d");
-  (*peripheral) = BLE.available();
-  if (*peripheral) {
-    BLE.stopScan();
-    Serial.print("Found ");
-    Serial.print(peripheral->address());
-    Serial.print(" '");
-    Serial.print(peripheral->localName());
-    Serial.print("' ");
-    Serial.print(peripheral->advertisedServiceUuid());
-    Serial.println();
-    if (peripheral->connect()) {
-      Serial.println("Connected, discovering service ...");
-      if (peripheral->discoverService("180d")) {
-        Serial.println("Serivce present");
-        characteristic = peripheral->characteristic("2a37");
-        if (characteristic) {
-          Serial.println("Characteristic present");
-          if (characteristic.canSubscribe()) {
-            characteristic.setEventHandler(BLEUpdated, hrmData);
-            characteristic.subscribe();
-            Serial.println("subscribed to 2a37");
-          } else {
-            Serial.println("Not subscribable");
-            peripheral->disconnect();
-          }
-        } else {
-          Serial.println("No characteristic");
-          peripheral->disconnect();
-        }
-      } else {
-        Serial.println("No service");
-        peripheral->disconnect();
-      }
-    } else {
-      Serial.println("Failed to connect!");
-    }
+bool hrmInit(BLEDevice *peripheral) {
+  if (!peripheral->discoverAttributes()) {
+    Serial.println("Characteristic discovery failed");
+    return false;
   }
-  Serial.print("After hrmInit, peripheral is ");
-  Serial.println(peripheral->connected() ? "connected" : "not connected");
+  BLECharacteristic characteristic = peripheral->characteristic("2a37");
+  if (!characteristic) {
+    Serial.println("No characteristic 2a37");
+    return false;
+  }
+  if (!characteristic.canSubscribe()) {
+    Serial.println("Characteristic 2a37 not subscribable");
+    return false;
+  }
+  characteristic.setEventHandler(BLEUpdated, hrmData);
+  characteristic.subscribe();
+  Serial.println("Subscribed to 2a37");
+  return true;
 }

@@ -26,9 +26,13 @@ TFT_eSprite rspr = TFT_eSprite(&tft);
 TFT_eSprite espr = TFT_eSprite(&tft);
 TFT_eSprite bspr = TFT_eSprite(&tft);
 
+static bool animating;
+
 void displayInit() {
   char *hello[] = {"The Wyrd Guy's", "Contraptions", NULL};
   char url[] = "https://www.github.com/thewyrdguy/";
+
+  animating = false;
 
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH); // Power up AMOLED
@@ -78,6 +82,8 @@ void displayInit() {
 void displayOff(void) {
   char *farewell = "No HRM, power off";
 
+  animating = false;
+
   spr.fillSprite(TFT_BLACK);
   spr.setTextColor(TFT_RED);
   spr.setTextSize(2);
@@ -94,10 +100,13 @@ void displayStart(void) {
   spr.drawSmoothRoundRect(0, 0, 8, 5, WWIDTH + 8, spr.height() - 1, TFT_NAVY, TFT_BLACK);
   spr.drawSmoothRoundRect(WWIDTH + 13, 0, 8, 5, WIDTH - WWIDTH - 13, spr.height() - 1, TFT_DARK, TFT_BLACK);
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
+  animating = true;
 }
 
 void displayConn(void) {
   char *lost = "Trying to connect";
+
+  animating = false;
 
   spr.fillSprite(TFT_BLACK);
   spr.setTextColor(TFT_RED);
@@ -169,6 +178,8 @@ static uint8_t oldbatt = 0;
 static uint8_t oldlbat = 0;
 
 void displayFrame(unsigned long ms) {
+  if (!animating) return;
+
   uint16_t hr = getHR();
   int rssi = getRSSI();
   int batt = getBatt();
