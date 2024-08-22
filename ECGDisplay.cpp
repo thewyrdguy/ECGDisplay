@@ -46,19 +46,25 @@ void discHandler(BLEDevice dev) {
 }
 
 void advHandler(BLEDevice dev) {
+  String asrv = dev.advertisedServiceUuid();
+  String name = dev.localName();
+
   Serial.print("Found ");
   Serial.print(dev.address());
   Serial.print(" '");
-  Serial.print(dev.localName());
+  Serial.print(name);
   Serial.print("' ");
-  Serial.print(dev.advertisedServiceUuid());
+  Serial.print(asrv);
   Serial.println();
-  if (dev.advertisedServiceUuid() == "180d") {
-    Serial.print("Found HRM sensor... ");
+  if ((asrv == "180d") || (name == "PC80B-BLE")) {
+    bool is_hrm = asrv == "180d";
+    Serial.print("Found ");
+    Serial.print(is_hrm ? "HRM" : "ECG");
+    Serial.print(" sensor ... ");
     BLE.stopScan();
     if (dev.connect() && dev.connected()) {
       Serial.println("connected");
-      if (hrmInit(&dev)) {
+      if ((is_hrm ? hrmInit : hrmInit)(&dev)) {  // echInit
         battInit(&dev);
         displayStart();
         idle_since = 0UL;
@@ -79,7 +85,7 @@ void setup(void) {
     Serial.println("Staring BLE failed");
     while (1);
   }
-  Serial.println("BLE Central for chest strap HRM");
+  Serial.println("BLE Central for HRM / ECG");
   displayInit();
   battReadEvent.set(10000, readBatt);
   updateEvent.set(1000/FPS, updateFrame);
