@@ -4,6 +4,7 @@
 #include "Data.h"
 #include "Display.h"
 #include "HRM.h"
+#include "PC80B.h"
 #include "Batt.h"
 #include "pins_config.h"
 
@@ -64,7 +65,7 @@ void advHandler(BLEDevice dev) {
     BLE.stopScan();
     if (dev.connect() && dev.connected()) {
       Serial.println("connected");
-      if ((is_hrm ? hrmInit : hrmInit)(&dev)) {  // echInit
+      if ((is_hrm ? hrmInit : pc80bInit)(&dev)) {
         battInit(&dev);
         displayStart();
         idle_since = 0UL;
