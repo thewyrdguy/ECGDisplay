@@ -12,24 +12,21 @@ static void battData(BLEDevice device, BLECharacteristic characteristic) {
 }
 
 void battInit(BLEDevice *peripheral) {
-  BLEService service;
-
-  if (peripheral->discoverService("180f")) {
-    Serial.print("Serivce for battery present");
-    BLECharacteristic characteristic = peripheral->characteristic("2a19");
-    if (characteristic) {
-      Serial.println("Characteristic for battery present");
-      uint8_t data[8] = {};
-      if (characteristic.readValue(data, sizeof(data))) {
-        int const datalen = characteristic.valueLength();
-        Serial.print("BATT "); Serial.print(data[0]);Serial.print(" len "); Serial.println(datalen);
-        battSend(data[0]);
-      }
-      if (characteristic.canSubscribe()) {
-        characteristic.setEventHandler(BLEUpdated, battData);
-        characteristic.subscribe();
-        Serial.println("subscribed to 2A19");
-      }
+  BLECharacteristic characteristic = peripheral->characteristic("2a19");
+  if (characteristic) {
+    Serial.println("Characteristic for battery present");
+    uint8_t data[8] = {};
+    if (characteristic.readValue(data, sizeof(data))) {
+      int const datalen = characteristic.valueLength();
+      Serial.print("BATT "); Serial.print(data[0]);Serial.print(" len "); Serial.println(datalen);
+      battSend(data[0]);
     }
+    if (characteristic.canSubscribe()) {
+      characteristic.setEventHandler(BLEUpdated, battData);
+      characteristic.subscribe();
+      Serial.println("subscribed to 2A19");
+    }
+  } else {
+    Serial.println("Battery characteristic is not present");
   }
 }

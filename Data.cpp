@@ -76,6 +76,7 @@ uint8_t getLbat(void) {
 
 #define MAXSAMP 8  // It's 6 for 150 Hz, 25 fps, or 5 for 30 fps.
 static int8_t buf[MAXSAMP] = {};
+static int repeated_underrun = 0;
 
 int8_t *getSamples(int num) {
   int to_copy, to_repeat, buf_left;
@@ -85,8 +86,15 @@ int8_t *getSamples(int num) {
   if (num < amount) {
     to_copy = num;
     to_repeat = 0;
+    if (repeated_underrun) {
+      Serial.print("Underrun was repeated "); Serial.print(repeated_underrun); Serial.println(" times");
+    }
+    repeated_underrun = 0;
   } else {
-    Serial.print("Underrun, only got "); Serial.println(to_copy);
+    if (!repeated_underrun) {
+      Serial.print("Underrun, only got "); Serial.print(to_copy); Serial.println(" samples");
+    }
+    repeated_underrun++;
     to_copy = amount;
     to_repeat = num - amount;
   }
