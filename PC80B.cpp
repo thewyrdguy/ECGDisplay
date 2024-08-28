@@ -5,24 +5,22 @@
 #include "crc8.h"
 #include "pins_config.h"
 
-typedef struct {
-  uint8_t seq_l;
-  uint8_t seq_h;
-  uint8_t pad1:4;
-  uint8_t gain:3;
-  uint8_t pad2:1;
-  uint8_t mstage:4;
-  uint8_t mmode:2;
-  uint8_t channel:2;
-  uint8_t hr;
-  uint8_t datatype:3;
-  uint8_t pad3:4;
-  uint8_t leadoff:1;
-  uint8_t data[];
-} __attribute__((packed)) fast_ecg_data;
-
-void processFastECG(uint8_t len, uint8_t *ptr) {
-  fast_ecg_data *d = (fast_ecg_data*)ptr;
+void processFastECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
+  struct fdframe {
+    uint8_t seq_l;
+    uint8_t seq_h;
+    uint8_t pad1:4;
+    uint8_t gain:3;
+    uint8_t pad2:1;
+    uint8_t mstage:4;
+    uint8_t mmode:2;
+    uint8_t channel:2;
+    uint8_t hr;
+    uint8_t datatype:3;
+    uint8_t pad3:4;
+    uint8_t leadoff:1;
+    uint8_t data[];
+  } __attribute__((packed)) *d = (struct fdframe *)ptr;
   uint16_t seq = d->seq_l + (d->seq_h << 8);
 #if 0
   Serial.print("Seq ");
@@ -53,7 +51,7 @@ void processFastECG(uint8_t len, uint8_t *ptr) {
   dataSend(d->hr, 0, 0, nsamp, samps);
 }
 
-void processFrame(uint8_t *frame) {
+void processFrame(BLEDevice device, uint8_t *frame) {
   Serial.print(frame[2]); Serial.print(": "); Serial.print(frame[0], HEX); Serial.print(" "); Serial.print(frame[1], HEX);
   Serial.print(" "); Serial.println(frame[2]);
 }
@@ -97,10 +95,10 @@ static void pc80bData(BLEDevice device, BLECharacteristic characteristic) {
     if ((frame[rptr] == 0xa5) && (crc == frame[rptr + flen - 1])) {
       switch (frame[rptr + 1]) {
         case FAST_ECG_DATA:
-          processFastECG(frame[rptr + 2], frame + rptr + 3);
+          processFastECG(device, frame[rptr + 2], frame + rptr + 3);
           break;
         default:
-          processFrame(frame + rptr);
+          processFrame(device, frame + rptr);
       }
     } else {
       Serial.print("Frame tag ");
