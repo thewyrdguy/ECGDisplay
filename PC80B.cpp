@@ -172,6 +172,17 @@ void processDevinfo(BLEDevice device, uint8_t len, uint8_t *ptr) {
   Serial.println();
 }
 
+void processHeartbeat(BLEDevice device, uint8_t len, uint8_t *ptr) {
+  Serial.print("Heartbeat:");
+  // Single byte with battery level
+  for (int i = 0; i < len; i++) {
+    Serial.print(" ");
+    Serial.print(ptr[i], HEX);
+  }
+  Serial.println();
+  rbattSend((ptr[0] * 30) + 10);
+}
+
 void processFrame(BLEDevice device, uint8_t *frame) {
   Serial.print(frame[2]); Serial.print(": "); Serial.print(frame[0], HEX); Serial.print(" "); Serial.print(frame[1], HEX);
   Serial.print(" "); Serial.println(frame[2]);
@@ -182,9 +193,10 @@ void processFrame(BLEDevice device, uint8_t *frame) {
 #define TRANSFER_MODE_DATA 0x55
 #define CONTINUOUS_ECG_DATA 0xaa
 #define FAST_ECG_DATA 0xdd
-#define HEATBEAT_DATA 0xff  // contains battery level
+#define HEARTBEAT_DATA 0xff  // contains battery level
 
 static bool first = true;
+static unsigned long next_time;
 #define BLE_MAX 512  // 512 is the max size of BLE characteristic value. In reality
 static uint8_t frame[BLE_MAX] = {};
 static int wptr;
@@ -236,12 +248,20 @@ static void pc80bData(BLEDevice device, BLECharacteristic characteristic) {
         case FAST_ECG_DATA:
           processFastECG(device, frame[rptr + 2], frame + rptr + 3);
           break;
+        case HEARTBEAT_DATA:
+          processHeartbeat(device, frame[rptr + 2], frame + rptr + 3);
+          break;
         default:
           processFrame(device, frame + rptr);
       }
       if (first) {
         sendCmd(device, 0x11, 6, (uint8_t *)"\0\0\0\0\0\0");
         first = false;
+      }
+      unsigned long now = millis();
+      if (now > next_time) {
+        sendCmd(device, 0xff, 1, (uint8_t *)"\0");
+        next_time = now + 5000;
       }
     } else {
       Serial.print("Frame tag ");
@@ -274,6 +294,7 @@ bool pc80bInit(BLEDevice *peripheral) {
     return false;
   }
   wptr = 0;
+  next_time = millis() + 5000;
   characteristic.setEventHandler(BLEUpdated, pc80bData);
   characteristic.subscribe();
   Serial.println("Subscribed to fff1");
