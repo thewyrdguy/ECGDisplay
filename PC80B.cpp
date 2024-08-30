@@ -5,6 +5,26 @@
 #include "crc8.h"
 #include "pins_config.h"
 
+static void sendCmd(BLEDevice device, uint8_t cmd, uint8_t len, uint8_t *ptr) {
+  uint8_t buf[64];
+  assert(len + 4 < sizeof(buf));
+  buf[0] = 0xa5;
+  buf[1] = cmd;
+  buf[2] = len;
+  memcpy(buf + 3, ptr, len);
+  buf[3 + len] = crc8(buf, 3 + len);
+
+  BLECharacteristic characteristic = device.characteristic("fff2");
+  if (characteristic && characteristic.canWrite()) {
+    characteristic.writeValue(buf, len + 4);
+    Serial.print("Written cmd");
+    for (int i = 0; i < len + 4; i++) {Serial.print(" "); Serial.print(buf[i], HEX);}
+    Serial.println();
+  } else {
+    Serial.println("No writable characteristic fff2");
+  }
+}
+
 void processContinuousECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
   struct cdframe {
     uint8_t seq;
@@ -17,17 +37,8 @@ void processContinuousECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
   } __attribute__((packed)) *d = (struct cdframe *)ptr;
 
   if ((len == 1) || (d->seq % 64 == 0)) {  // Stop data, need ACK, or every 64 frames
-    uint8_t ack[6] = {0xa5, 0xaa, 0x02, d->seq, 0x00, 0x00};
-    ack[5] = crc8(ack, sizeof(ack) - 1);
-    BLECharacteristic characteristic = device.characteristic("fff2");
-    if (characteristic && characteristic.canWrite()) {
-      characteristic.writeValue(ack, sizeof(ack));
-      Serial.print("Written ACK ");
-      for (int i = 0; i < sizeof(ack); i++) Serial.print(ack[i], HEX);
-      Serial.println();
-    } else {
-      Serial.println("No writable characteristic fff2");
-    }
+    uint8_t ack[2] = {d->seq, 0x00};
+    sendCmd(device, 0xaa, 2, ack);
     return;
   }
 
@@ -62,18 +73,8 @@ void processTransferMode(BLEDevice device, uint8_t len, uint8_t *ptr) {
     Serial.print(d->sn[i], HEX);
   }
   Serial.println();
-  uint8_t ack[5] = {0xa5, 0x55, 0x01, 0x00, 0x00};
-  ack[3] = (d->transtype ? 0x01 : 0x00);
-  ack[4] = crc8(ack, sizeof(ack) - 1);
-  BLECharacteristic characteristic = device.characteristic("fff2");
-  if (characteristic && characteristic.canWrite()) {
-    characteristic.writeValue(ack, sizeof(ack));
-    Serial.print("Written ACK ");
-    for (int i = 0; i < sizeof(ack); i++) Serial.print(ack[i], HEX);
-    Serial.println();
-  } else {
-    Serial.println("No writable characteristic 0xfff2");
-  }
+  uint8_t ack = (d->transtype ? 0x01 : 0x00);
+  sendCmd(device, 0x55, 1, &ack);
 }
 
 void processFastECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
@@ -163,7 +164,12 @@ void processTime(BLEDevice device, uint8_t len, uint8_t *ptr) {
 }
 
 void processDevinfo(BLEDevice device, uint8_t len, uint8_t *ptr) {
-  ;
+  Serial.print("DevInfo:");
+  for (int i = 0; i < len; i++) {
+    Serial.print(" ");
+    Serial.print(ptr[i], HEX);
+  }
+  Serial.println();
 }
 
 void processFrame(BLEDevice device, uint8_t *frame) {
@@ -176,7 +182,9 @@ void processFrame(BLEDevice device, uint8_t *frame) {
 #define TRANSFER_MODE_DATA 0x55
 #define CONTINUOUS_ECG_DATA 0xaa
 #define FAST_ECG_DATA 0xdd
+#define HEATBEAT_DATA 0xff  // contains battery level
 
+static bool first = true;
 #define BLE_MAX 512  // 512 is the max size of BLE characteristic value. In reality
 static uint8_t frame[BLE_MAX] = {};
 static int wptr;
@@ -213,6 +221,9 @@ static void pc80bData(BLEDevice device, BLECharacteristic characteristic) {
     uint8_t crc = crc8(frame + rptr, flen - 1);
     if ((frame[rptr] == 0xa5) && (crc == frame[rptr + flen - 1])) {
       switch (frame[rptr + 1]) {
+        case DEVINFO_DATA:
+          processDevinfo(device, frame[rptr + 2], frame + rptr + 3);
+          break;
         case TIME_DATA:
           processTime(device, frame[rptr + 2], frame + rptr + 3);
           break;
@@ -227,6 +238,10 @@ static void pc80bData(BLEDevice device, BLECharacteristic characteristic) {
           break;
         default:
           processFrame(device, frame + rptr);
+      }
+      if (first) {
+        sendCmd(device, 0x11, 6, (uint8_t *)"\0\0\0\0\0\0");
+        first = false;
       }
     } else {
       Serial.print("Frame tag ");
