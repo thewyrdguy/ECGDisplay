@@ -181,9 +181,12 @@ void displayFrame(unsigned long ms) {
   if (!animating) return;
 
   uint16_t hr = getHR();
-  int rssi = getRSSI();
-  int batt = getBatt();
-  int lbat = getLbat();
+  int rssi = (getRSSI() + 100) / 10;
+  if (rssi < 0) rssi = 0;
+  if (rssi > 4) rssi = 4;
+
+  int batt = getRbatt();
+  int lbat = getLbatt();
   int8_t *samples = getSamples(FWIDTH);
   displaySamples(FWIDTH, samples);
   if (hr != oldhr) {

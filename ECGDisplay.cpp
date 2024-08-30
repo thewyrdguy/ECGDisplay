@@ -26,7 +26,7 @@ void readBatt(void) {
   //    vref = adc_chars.vref;
   // }
   // float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
-  lbatSend(nbat);
+  lbattSend(nbat);
   // Use the opportunity to check disconnected time
   if (idle_since && millis() - idle_since > 50000) {
     Serial.println("Switching off to save power");

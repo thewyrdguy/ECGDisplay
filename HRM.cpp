@@ -64,6 +64,8 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   int rris;
   uint8_t flags = *(data++);
 
+  uint8_t missed = 0;
+
   if (flags & F_HR16) {
     hr = data[0] + (data[1] << 8);
     data += 2;
@@ -80,6 +82,11 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   if (flags & F_HAS_RRI) {
     int i;
     rris = (end - data) / 2;
+    if (rris) {
+      missed = 0;
+    } else {
+      missed++;
+    }
     if (rris > sizeof(rri) / sizeof(rri[0]))
       rris = sizeof(rri) / sizeof(rri[0]);
     for (i = 0; i < rris; i++) {
@@ -89,10 +96,6 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   } else {
     rris = 0;
   }
-  rssi = (device.rssi() + 100) / 10;
-  if (rssi < 0) rssi = 0;
-  if (rssi > 4) rssi = 4;
-
   Serial.print("RSSI: ");
   Serial.print(rssi);
   Serial.print(" HR: ");
@@ -110,7 +113,13 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
 
   int num = SBUFSIZE;
   makeSamples(rris, rri, &num, samples);
-  dataSend(hr, energy, rssi, num, samples);
+  dataSend(
+    (struct dataset){
+      .rssi = device.rssi(), .energy = energy,
+      .leadoff = (missed > 3), .heartrate = hr
+    },
+    num, samples
+  );
 }
 
 bool hrmInit(BLEDevice *peripheral) {

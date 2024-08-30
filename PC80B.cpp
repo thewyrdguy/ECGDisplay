@@ -16,7 +16,7 @@ void processContinuousECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
     uint8_t leadoff:1;
   } __attribute__((packed)) *d = (struct cdframe *)ptr;
 
-  if ((len == 1) || (d->seq % 32 == 0)) {  // Stop data, need ACK, or every 32 frames
+  if ((len == 1) || (d->seq % 64 == 0)) {  // Stop data, need ACK, or every 64 frames
     uint8_t ack[6] = {0xa5, 0xaa, 0x02, d->seq, 0x00, 0x00};
     ack[5] = crc8(ack, sizeof(ack) - 1);
     BLECharacteristic characteristic = device.characteristic("fff2");
@@ -26,7 +26,7 @@ void processContinuousECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
       for (int i = 0; i < sizeof(ack); i++) Serial.print(ack[i], HEX);
       Serial.println();
     } else {
-      Serial.println("No writable characteristic 0xfff2");
+      Serial.println("No writable characteristic fff2");
     }
     return;
   }
@@ -37,10 +37,12 @@ void processContinuousECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
   for (int i = 0; i < nsamp; i++) {
     samps[i] = ((d->data[i * 2] + (d->data[i * 2 + 1] << 8)) - 2048) / 4;
   }
-  int rssi = (device.rssi() + 100) / 10;
-  if (rssi < 0) rssi = 0;
-  if (rssi > 4) rssi = 4;
-  dataSend(d->hr, 0, rssi, nsamp, samps);
+  dataSend(
+    (struct dataset){
+      .rssi = device.rssi(), .volume = vol, .gain = d->gain, .leadoff = d->leadoff, .heartrate = d->hr
+    },
+    nsamp, samps
+  );
 }
 
 void processTransferMode(BLEDevice device, uint8_t len, uint8_t *ptr) {
@@ -120,7 +122,15 @@ void processFastECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
   int rssi = (device.rssi() + 100) / 10;
   if (rssi < 0) rssi = 0;
   if (rssi > 4) rssi = 4;
-  dataSend(d->hr, 0, rssi, nsamp, samps);
+  dataSend(
+    (struct dataset){
+      .rssi = rssi, .gain = d->gain, .mstage = (enum mstage_e)d->mstage,
+      .mmode = (enum mmode_e)d->mmode, .channel = (enum channel_e)d->channel,
+      .datatype = (enum datatype_e)d->datatype, .leadoff = d->leadoff,
+      .heartrate = d->hr
+    },
+    nsamp, samps
+  );
 }
 
 void processTime(BLEDevice device, uint8_t len, uint8_t *ptr) {

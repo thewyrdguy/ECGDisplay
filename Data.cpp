@@ -7,24 +7,21 @@
 
 static std::mutex mtx;
 
-static uint16_t hr = 0;
-static uint16_t energy = 0;
-static int rssi = 0;
-static uint8_t batt = 0;
-static uint8_t lbat = 0;
+static struct dataset ds = {};
+static uint8_t rbatt = 0;
+static uint8_t lbatt = 0;
 
 #define BUFSIZE 384  // 2.7 seconds worth of data at 150 SPS
 static int8_t samples[BUFSIZE] = {};  // +/- 127 should be enough for display that is 240 px high
 static uint16_t rdp = 0;  // we expect 25 times more reads than writes, so use read point for the base
 static uint16_t amount = 0;
 
-void dataSend(uint16_t p_hr, uint16_t p_energy, int p_rssi, int p_num, int8_t *p_samples) {
+void dataSend(struct dataset p_ds, int p_num, int8_t *p_samples) {
   int wrp, avail, rest, buf_left;
 
   std::lock_guard<std::mutex> lck(mtx);
-  hr = p_hr;
-  energy = p_energy;
-  rssi = p_rssi;
+
+  ds = p_ds;
 
   wrp = (rdp + amount) % BUFSIZE;
   avail = BUFSIZE - amount;
@@ -37,43 +34,30 @@ void dataSend(uint16_t p_hr, uint16_t p_energy, int p_rssi, int p_num, int8_t *p
   }
   if (p_num <= avail) {
     amount += p_num;
+    ds.overrun = false;
   } else {
     Serial.print("Overrun by "); Serial.println(p_num - avail);
     amount = BUFSIZE;
     rdp = (wrp + p_num) % BUFSIZE;
+    ds.overrun = true;
   }
 }
 
-void battSend(uint8_t p_batt) {
+void rbattSend(uint8_t p_rbatt) {
   std::lock_guard<std::mutex> lck(mtx);
-  batt = p_batt;
+  rbatt = p_rbatt;
 }
 
-void lbatSend(uint8_t p_batt) {
+void lbattSend(uint8_t p_lbatt) {
   std::lock_guard<std::mutex> lck(mtx);
-  lbat = p_batt;
+  lbatt = p_lbatt;
 }
 
-uint16_t getHR(void) {
+extern void dataFetch(struct dataset *ds_p, int num, int8_t *samples_p) {
   std::lock_guard<std::mutex> lck(mtx);
-  return hr;
 }
 
-int getRSSI(void) {
-  std::lock_guard<std::mutex> lck(mtx);
-  return rssi;
-}
-
-uint8_t getBatt(void) {
-  std::lock_guard<std::mutex> lck(mtx);
-  return batt;
-}
-
-uint8_t getLbat(void) {
-  std::lock_guard<std::mutex> lck(mtx);
-  return lbat;
-}
-
+// deprecated
 #define MAXSAMP 8  // It's 6 for 150 Hz, 25 fps, or 5 for 30 fps.
 static int8_t buf[MAXSAMP] = {};
 static int repeated_underrun = 0;
@@ -90,6 +74,7 @@ int8_t *getSamples(int num) {
       Serial.print("Underrun was repeated "); Serial.print(repeated_underrun); Serial.println(" times");
     }
     repeated_underrun = 0;
+    ds.underrun = false;
   } else {
     if (!repeated_underrun) {
       Serial.print("Underrun, only got "); Serial.print(to_copy); Serial.println(" samples");
@@ -97,6 +82,7 @@ int8_t *getSamples(int num) {
     repeated_underrun++;
     to_copy = amount;
     to_repeat = num - amount;
+    ds.underrun = true;
   }
   buf_left = BUFSIZE - rdp;
   if (buf_left >= to_copy) {
@@ -111,4 +97,24 @@ int8_t *getSamples(int num) {
   rdp = (rdp + to_copy) % BUFSIZE;
   amount -= to_copy;
   return buf;
+}
+
+uint16_t getHR(void) {
+  std::lock_guard<std::mutex> lck(mtx);
+  return ds.heartrate;
+}
+
+int getRSSI(void) {
+  std::lock_guard<std::mutex> lck(mtx);
+  return ds.rssi;
+}
+
+uint8_t getRbatt(void) {
+  std::lock_guard<std::mutex> lck(mtx);
+  return rbatt;
+}
+
+uint8_t getLbatt(void) {
+  std::lock_guard<std::mutex> lck(mtx);
+  return lbatt;
 }

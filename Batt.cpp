@@ -8,7 +8,7 @@ static void battData(BLEDevice device, BLECharacteristic characteristic) {
   uint8_t const *data = characteristic.value();
   int const datalen = characteristic.valueLength();
   Serial.print("BATT "); Serial.print(data[0]);Serial.print(" len "); Serial.println(datalen);
-  battSend(data[0]);
+  rbattSend(data[0]);
 }
 
 void battInit(BLEDevice *peripheral) {
@@ -19,7 +19,7 @@ void battInit(BLEDevice *peripheral) {
     if (characteristic.readValue(data, sizeof(data))) {
       int const datalen = characteristic.valueLength();
       Serial.print("BATT "); Serial.print(data[0]);Serial.print(" len "); Serial.println(datalen);
-      battSend(data[0]);
+      rbattSend(data[0]);
     }
     if (characteristic.canSubscribe()) {
       characteristic.setEventHandler(BLEUpdated, battData);
