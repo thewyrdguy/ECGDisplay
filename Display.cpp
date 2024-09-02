@@ -27,34 +27,48 @@ TFT_eSprite espr = TFT_eSprite(&tft);
 TFT_eSprite bspr = TFT_eSprite(&tft);
 
 static bool animating;
+char hello[] PROGMEM = "The Wyrd Things";
+char url[] PROGMEM = "https://www.github.com/thewyrdguy/";
+char scanning[] PROGMEM = "Searching for an HRM or PC80B sensor";
+char reconnecting[] PROGMEM = "Connection lost, searching again";
+char farewell[] PROGMEM = "No sensor found, switching off to save battery";
+
+static void displayIntro(char *msg) {
+  spr.fillSprite(TFT_NAVY);
+  spr.setTextColor(TFT_LIGHTGREY);
+  spr.setTextSize(3);
+  spr.setTextFont(FONTNO);
+  spr.setTextDatum(4);  // Middle
+  int vstep = spr.fontHeight(FONTNO);
+  int vpos = spr.height() / 2;
+  spr.setTextSize(2);
+  spr.drawString(hello, spr.width() / 2, vpos, 4);
+  spr.setTextSize(1);
+  spr.drawString(url, spr.width() / 2, vpos - vstep, 4);
+  spr.setTextColor(TFT_YELLOW);
+  spr.drawString(msg, spr.width() / 2, vpos + vstep, 4);
+  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
+}
 
 void displayInit() {
-  char *hello[] = {"The Wyrd Guy's", "Contraptions", NULL};
-  char url[] = "https://www.github.com/thewyrdguy/";
-
   animating = false;
 
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH); // Power up AMOLED
   rm67162_init(); // amoled lcd initialization
   lcd_setRotation(1);
+
   spr.createSprite(WIDTH, HEIGHT);
   spr.setSwapBytes(1);
+  displayIntro(scanning);
 
-  spr.fillSprite(TFT_NAVY);
-  spr.setTextColor(TFT_LIGHTGREY);
-  spr.setTextSize(2);
-  spr.setTextFont(FONTNO);
-  spr.setTextDatum(4);  // Middle
-  int vstep = spr.fontHeight(FONTNO);
-  int vpos = spr.height() / 2 - vstep;
-  for (int i = 0; hello[i]; i++) {
-    spr.drawString(hello[i], spr.width() / 2, vpos, 4);
-    vpos += vstep;
-  }
-  spr.setTextSize(1);
-  spr.drawString(url, spr.width() / 2, vpos, 4);
-
+#if 0
+  Serial.print("Width of 3 chars ");
+  Serial.print(spr.textWidth("555", FONTNO));
+  Serial.print(" hight of line ");
+  Serial.println(spr.fontHeight(FONTNO));
+  // Result is w=42, h=26
+#endif
   nspr.createSprite(spr.textWidth("555", FONTNO), spr.fontHeight(FONTNO));
   nspr.setSwapBytes(1);
   nspr.setTextColor(TFT_YELLOW);
@@ -75,21 +89,11 @@ void displayInit() {
 
   espr.createSprite(FWIDTH, HEIGHT - 10);
   espr.setSwapBytes(1);
-
-  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
 }
 
 void displayOff(void) {
-  char *farewell = "No HRM, power off";
-
   animating = false;
-
-  spr.fillSprite(TFT_BLACK);
-  spr.setTextColor(TFT_RED);
-  spr.setTextSize(2);
-  spr.setTextFont(FONTNO);
-  spr.drawString(farewell, spr.width() / 2, spr.height() / 2, 4);
-  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
+  displayIntro(farewell);
   delay(2000);
   lcd_sleep();
   digitalWrite(PIN_LED, LOW);
@@ -98,22 +102,14 @@ void displayOff(void) {
 void displayStart(void) {
   spr.fillSprite(TFT_BLACK);
   spr.drawSmoothRoundRect(0, 0, 8, 5, WWIDTH + 8, spr.height() - 1, TFT_NAVY, TFT_BLACK);
-  spr.drawSmoothRoundRect(WWIDTH + 13, 0, 8, 5, WIDTH - WWIDTH - 13, spr.height() - 1, TFT_DARK, TFT_BLACK);
+  spr.drawSmoothRoundRect(WWIDTH + 13, 0, 8, 5, WIDTH - WWIDTH - 13, spr.height() - 1, TFT_PURPLE, TFT_BLACK);
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
   animating = true;
 }
 
 void displayConn(void) {
-  char *lost = "Trying to connect";
-
   animating = false;
-
-  spr.fillSprite(TFT_BLACK);
-  spr.setTextColor(TFT_RED);
-  spr.setTextSize(2);
-  spr.setTextFont(FONTNO);
-  spr.drawString(lost, spr.width() / 2, spr.height() / 2, 4);
-  lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
+  displayIntro(reconnecting);
 }
 
 static int dpos = 0;
