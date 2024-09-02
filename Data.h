@@ -31,7 +31,6 @@ enum datatype_e {
 };
 
 struct dataset {
-  int rssi;
   uint16_t energy;
   uint16_t volume;
   uint8_t gain;
@@ -41,6 +40,10 @@ struct dataset {
   enum datatype_e datatype;
   bool leadoff;
   uint8_t heartrate;
+  uint8_t rssi;
+#define DYNSIZE (offsetof(struct dataset, lbatt) - offsetof(struct dataset, energy))
+  uint8_t lbatt;
+  uint8_t rbatt;
   bool overrun;
   bool underrun;
 } __attribute__((packed));
@@ -49,9 +52,3 @@ extern void dataSend(struct dataset ds, int num, int8_t *samples);
 extern void rbattSend(uint8_t batt);
 extern void lbattSend(uint8_t batt);
 extern void dataFetch(struct dataset *ds_p, int num, int8_t *samples_p);
-
-extern uint8_t getRbatt(void);
-extern uint8_t getLbatt(void);
-extern uint16_t getHR(void);
-extern int getRSSI(void);
-extern int8_t *getSamples(int num);

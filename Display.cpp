@@ -145,13 +145,13 @@ static void displaySamples(int num, int8_t *samples) {
   lcd_PushColors(dpos + 5, 5, espr.width(), espr.height(), (uint16_t *)espr.getPointer());
 }
 
-static void displayHR(uint16_t hr) {
+static void displayHR(uint16_t hr, int slot) {
   nspr.fillSprite(TFT_BLACK);
   nspr.drawNumber(hr, nspr.width() / 2, nspr.height() / 2);
   lcd_PushColors((WWIDTH + WIDTH + 14 - nspr.width()) / 2, 60, nspr.width(), nspr.height(), (uint16_t *)nspr.getPointer());
 }
 
-static void displayRSSI(int rssi) {
+static void displayRSSI(int rssi, int slot) {
   uint16_t colour = rssi >= 1 ? TFT_GREEN : TFT_RED;
 
   for (int i = 0; i < 5; i++) {
@@ -172,45 +172,30 @@ static void displayBatt(uint8_t batt, int botm) {
   lcd_PushColors(WWIDTH + 30, HEIGHT - botm, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
 }
 
-static uint16_t oldhr = 0;
-static int oldrssi = 0;
-static uint8_t oldbatt = 0;
-static uint8_t oldlbat = 0;
+static struct dataset old_ds = {};
+
+#define IF_CHANGED(FL, FUNC, SLOT) do { \
+  if (ds.FL != old_ds.FL) { \
+    Serial.print(#FL " change from "); \
+    Serial.print(old_ds.FL); \
+    Serial.print(" to "); \
+    Serial.println(ds.FL); \
+    old_ds.FL = ds.FL; \
+    FUNC(ds.FL, SLOT); \
+  } \
+} while (0)
 
 void displayFrame(unsigned long ms) {
   if (!animating) return;
 
-  uint16_t hr = getHR();
-  int rssi = (getRSSI() + 100) / 10;
-  if (rssi < 0) rssi = 0;
-  if (rssi > 4) rssi = 4;
+  struct dataset ds;
+  int8_t samples[FWIDTH];
+  dataFetch(&ds, FWIDTH, samples);
 
-  int batt = getRbatt();
-  int lbat = getLbatt();
-  int8_t *samples = getSamples(FWIDTH);
   displaySamples(FWIDTH, samples);
-  if (hr != oldhr) {
-    Serial.print("HR change: ");
-    Serial.println(hr);
-    displayHR(hr);
-    oldhr = hr;
-  }
-  if (rssi != oldrssi) {
-    Serial.print("RSSI change: ");
-    Serial.println(rssi);
-    displayRSSI(rssi);
-    oldrssi = rssi;
-  }
-  if (batt != oldbatt) {
-    Serial.print("Batt change ");
-    Serial.println(batt);
-    displayBatt(batt, 70);
-    oldbatt = batt;
-  }
-  if (lbat != oldlbat) {
-    Serial.print("Local Batt change ");
-    Serial.println(lbat);
-    displayBatt(lbat, 40);
-    oldlbat = lbat;
-  }
+  IF_CHANGED(heartrate, displayHR, 0);
+  IF_CHANGED(rssi, displayRSSI, 0);
+  IF_CHANGED(rbatt, displayBatt, 70);
+  IF_CHANGED(lbatt, displayBatt, 40);
+  old_ds = ds;
 }

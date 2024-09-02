@@ -8,8 +8,6 @@
 static std::mutex mtx;
 
 static struct dataset ds = {};
-static uint8_t rbatt = 0;
-static uint8_t lbatt = 0;
 
 #define BUFSIZE 384  // 2.7 seconds worth of data at 150 SPS
 static int8_t samples[BUFSIZE] = {};  // +/- 127 should be enough for display that is 240 px high
@@ -21,7 +19,7 @@ void dataSend(struct dataset p_ds, int p_num, int8_t *p_samples) {
 
   std::lock_guard<std::mutex> lck(mtx);
 
-  ds = p_ds;
+  memcpy(&ds, &p_ds, DYNSIZE);
 
   wrp = (rdp + amount) % BUFSIZE;
   avail = BUFSIZE - amount;
@@ -45,39 +43,36 @@ void dataSend(struct dataset p_ds, int p_num, int8_t *p_samples) {
 
 void rbattSend(uint8_t p_rbatt) {
   std::lock_guard<std::mutex> lck(mtx);
-  rbatt = p_rbatt;
+  ds.rbatt = p_rbatt;
 }
 
 void lbattSend(uint8_t p_lbatt) {
   std::lock_guard<std::mutex> lck(mtx);
-  lbatt = p_lbatt;
+  ds.lbatt = p_lbatt;
 }
 
-extern void dataFetch(struct dataset *ds_p, int num, int8_t *samples_p) {
-  std::lock_guard<std::mutex> lck(mtx);
-}
-
-// deprecated
-#define MAXSAMP 8  // It's 6 for 150 Hz, 25 fps, or 5 for 30 fps.
-static int8_t buf[MAXSAMP] = {};
 static int repeated_underrun = 0;
 
-int8_t *getSamples(int num) {
+extern void dataFetch(struct dataset *ds_p, int num, int8_t *samples_p) {
   int to_copy, to_repeat, buf_left;
 
-  assert(num < MAXSAMP);
   std::lock_guard<std::mutex> lck(mtx);
+
   if (num < amount) {
     to_copy = num;
     to_repeat = 0;
     if (repeated_underrun) {
-      Serial.print("Underrun was repeated "); Serial.print(repeated_underrun); Serial.println(" times");
+      Serial.print("Underrun happened ");
+      Serial.print(repeated_underrun);
+      Serial.println(" time(s)");
     }
     repeated_underrun = 0;
     ds.underrun = false;
   } else {
     if (!repeated_underrun) {
-      Serial.print("Underrun, only got "); Serial.print(to_copy); Serial.println(" samples");
+      Serial.print("Underrun, only got ");
+      Serial.print(to_copy);
+      Serial.println(" samples");
     }
     repeated_underrun++;
     to_copy = amount;
@@ -86,35 +81,16 @@ int8_t *getSamples(int num) {
   }
   buf_left = BUFSIZE - rdp;
   if (buf_left >= to_copy) {
-    memcpy(buf, samples + rdp, to_copy);
+    memcpy(samples_p, samples + rdp, to_copy);
   } else {
-    memcpy(buf, samples + rdp, buf_left);
-    memcpy(buf + buf_left, samples, to_copy - buf_left);
+    memcpy(samples_p, samples + rdp, buf_left);
+    memcpy(samples_p + buf_left, samples, to_copy - buf_left);
   }
   if (to_repeat)
-    memset(buf + to_copy, samples[(rdp + to_copy - 1) % BUFSIZE], to_repeat);
+    memset(samples_p + to_copy, samples[(rdp + to_copy - 1) % num], to_repeat);
 
   rdp = (rdp + to_copy) % BUFSIZE;
   amount -= to_copy;
-  return buf;
-}
 
-uint16_t getHR(void) {
-  std::lock_guard<std::mutex> lck(mtx);
-  return ds.heartrate;
-}
-
-int getRSSI(void) {
-  std::lock_guard<std::mutex> lck(mtx);
-  return ds.rssi;
-}
-
-uint8_t getRbatt(void) {
-  std::lock_guard<std::mutex> lck(mtx);
-  return rbatt;
-}
-
-uint8_t getLbatt(void) {
-  std::lock_guard<std::mutex> lck(mtx);
-  return lbatt;
+  (*ds_p) = ds; // Do this after maybe updating underrun field
 }

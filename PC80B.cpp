@@ -1,5 +1,6 @@
 #include <ArduinoBLE.h>
 #include "Data.h"
+#include "norm_rssi.h"
 #include "PC80B.h"
 #include "Display.h"
 #include "crc8.h"
@@ -50,7 +51,7 @@ void processContinuousECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
   }
   dataSend(
     (struct dataset){
-      .rssi = device.rssi(), .volume = vol, .gain = d->gain, .leadoff = d->leadoff, .heartrate = d->hr
+      .volume = vol, .gain = d->gain, .leadoff = d->leadoff, .heartrate = d->hr, .rssi = norm_rssi(device.rssi())
     },
     nsamp, samps
   );
@@ -120,15 +121,12 @@ void processFastECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
   for (int i = 0; i < nsamp; i++) {
     samps[i] = ((d->data[i * 2] + (d->data[i * 2 + 1] << 8)) - 2048) / 4;
   }
-  int rssi = (device.rssi() + 100) / 10;
-  if (rssi < 0) rssi = 0;
-  if (rssi > 4) rssi = 4;
   dataSend(
     (struct dataset){
-      .rssi = rssi, .gain = d->gain, .mstage = (enum mstage_e)d->mstage,
+      .gain = d->gain, .mstage = (enum mstage_e)d->mstage,
       .mmode = (enum mmode_e)d->mmode, .channel = (enum channel_e)d->channel,
       .datatype = (enum datatype_e)d->datatype, .leadoff = d->leadoff,
-      .heartrate = d->hr
+      .heartrate = d->hr, .rssi = norm_rssi(device.rssi())
     },
     nsamp, samps
   );

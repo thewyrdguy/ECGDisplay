@@ -1,5 +1,6 @@
 #include <ArduinoBLE.h>
 #include "Data.h"
+#include "norm_rssi.h"
 #include "HRM.h"
 #include "Display.h"
 #include "pins_config.h"
@@ -59,7 +60,6 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   uint8_t const *end = data + datalen;
   uint16_t hr;
   uint16_t energy;
-  int rssi = 0;
   uint16_t rri[10];
   int rris;
   uint8_t flags = *(data++);
@@ -96,8 +96,6 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   } else {
     rris = 0;
   }
-  Serial.print("RSSI: ");
-  Serial.print(rssi);
   Serial.print(" HR: ");
   Serial.print(hr);
   if (energy) {
@@ -115,8 +113,8 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   makeSamples(rris, rri, &num, samples);
   dataSend(
     (struct dataset){
-      .rssi = device.rssi(), .energy = energy,
-      .leadoff = (missed > 3), .heartrate = hr
+      .energy = energy, .leadoff = (missed > 3),
+      .heartrate = hr, .rssi = norm_rssi(device.rssi())
     },
     num, samples
   );
