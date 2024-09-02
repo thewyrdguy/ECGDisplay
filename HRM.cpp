@@ -41,6 +41,7 @@ static void makeSamples(int rris, uint16_t rri[], int *nump, int8_t sampp[]) {
 
 #define SBUFSIZE 1024
 static int8_t samples[SBUFSIZE];
+uint8_t missed = 0;
 
 static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
 #if 0
@@ -64,8 +65,6 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   int rris;
   uint8_t flags = *(data++);
 
-  uint8_t missed = 0;
-
   if (flags & F_HR16) {
     hr = data[0] + (data[1] << 8);
     data += 2;
@@ -82,11 +81,7 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
   if (flags & F_HAS_RRI) {
     int i;
     rris = (end - data) / 2;
-    if (rris) {
-      missed = 0;
-    } else {
-      missed++;
-    }
+    missed = 0;
     if (rris > sizeof(rri) / sizeof(rri[0]))
       rris = sizeof(rri) / sizeof(rri[0]);
     for (i = 0; i < rris; i++) {
@@ -95,6 +90,7 @@ static void hrmData(BLEDevice device, BLECharacteristic characteristic) {
     }
   } else {
     rris = 0;
+    missed++;
   }
   Serial.print(" HR: ");
   Serial.print(hr);

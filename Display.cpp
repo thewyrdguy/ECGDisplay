@@ -22,7 +22,6 @@
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 TFT_eSprite nspr = TFT_eSprite(&tft);
-TFT_eSprite rspr = TFT_eSprite(&tft);
 TFT_eSprite espr = TFT_eSprite(&tft);
 TFT_eSprite bspr = TFT_eSprite(&tft);
 
@@ -76,11 +75,8 @@ void displayInit() {
   nspr.setTextFont(FONTNO);
   nspr.setTextDatum(4);
 
-  rspr.createSprite(40, 15);
-  rspr.setSwapBytes(1);
-
-  bspr.createSprite(spr.textWidth("555", FONTNO), spr.fontHeight(FONTNO));
-  //bspr.createSprite(40, 15);
+  //bspr.createSprite(spr.textWidth("555", FONTNO), spr.fontHeight(FONTNO));
+  bspr.createSprite(40, 15);
   bspr.setSwapBytes(1);
   bspr.setTextColor(TFT_DARKGREY);
   bspr.setTextSize(1);
@@ -141,43 +137,60 @@ static void displaySamples(int num, int8_t *samples) {
   lcd_PushColors(dpos + 5, 5, espr.width(), espr.height(), (uint16_t *)espr.getPointer());
 }
 
-static void displayHR(uint16_t hr, int slot) {
+static void displayHR(uint16_t hr, int x, int y) {
   nspr.fillSprite(TFT_BLACK);
   nspr.drawNumber(hr, nspr.width() / 2, nspr.height() / 2);
-  lcd_PushColors((WWIDTH + WIDTH + 14 - nspr.width()) / 2, 60, nspr.width(), nspr.height(), (uint16_t *)nspr.getPointer());
+  lcd_PushColors(x, y, nspr.width(), nspr.height(), (uint16_t *)nspr.getPointer());
 }
 
-static void displayRSSI(int rssi, int slot) {
+static void displayRSSI(int rssi, int x, int y) {
   uint16_t colour = rssi >= 1 ? TFT_GREEN : TFT_RED;
 
+  bspr.fillSprite(TFT_BLACK);
   for (int i = 0; i < 5; i++) {
     int h = (i + 1) * 3;
-    rspr.fillRect(i * 8, 15 - h, 5, h, i <= rssi ? colour : TFT_DARK);
+    bspr.fillRect(i * 8, 15 - h, 5, h, i <= rssi ? colour : TFT_DARK);
   }
-  lcd_PushColors(WWIDTH + 35, 20, rspr.width(), rspr.height(), (uint16_t *)rspr.getPointer());
+  lcd_PushColors(x, y, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
 }
 
-static void displayBatt(uint8_t batt, int botm) {
+static void displayLead(bool leadoff, int x, int y) {
+  bspr.fillSprite(TFT_BLACK);
+  uint32_t colour = leadoff ? TFT_RED : TFT_BLUE;
+  uint32_t r = bspr.height() / 2;
+  bspr.fillSmoothCircle(r, r, r, colour, TFT_BLACK);
+  bspr.fillSmoothCircle(bspr.width() - r - 1, r, r, colour, TFT_BLACK);
+  if (leadoff) {
+    uint32_t w = bspr.width() / 2;
+    bspr.fillRect(1, r - 2, w - 4, 5, colour);
+    bspr.fillRect(w + 3, r - 2, w - 3, 5, colour);
+  } else {
+    bspr.fillRect(0, r - 2, bspr.width(), 5, colour);
+  }
+  lcd_PushColors(x, y, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
+}
+
+static void displayBatt(uint8_t batt, int x, int y) {
   uint16_t colour = batt >= 15 ? TFT_DARKGREEN : TFT_RED;
 
   if (batt > 100) batt = 100;
   bspr.fillSprite(TFT_BLACK);
   bspr.drawRect(0, 0, bspr.width(), bspr.height(), colour);
   bspr.fillRect(0, 0, bspr.width() * batt / 100, bspr.height(), colour);
-  bspr.drawNumber(batt, bspr.width() / 2, bspr.height() / 2);
-  lcd_PushColors(WWIDTH + 30, HEIGHT - botm, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
+  //bspr.drawNumber(batt, bspr.width() / 2, bspr.height() / 2);
+  lcd_PushColors(x, y, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
 }
 
-static struct dataset old_ds = {};
+static struct dataset old_ds = { .leadoff = true };
 
-#define IF_CHANGED(FL, FUNC, SLOT) do { \
+#define IF_CHANGED(FL, FUNC, X, Y) do { \
   if (ds.FL != old_ds.FL) { \
     Serial.print(#FL " change from "); \
     Serial.print(old_ds.FL); \
     Serial.print(" to "); \
     Serial.println(ds.FL); \
     old_ds.FL = ds.FL; \
-    FUNC(ds.FL, SLOT); \
+    FUNC(ds.FL, X, Y); \
   } \
 } while (0)
 
@@ -189,9 +202,10 @@ void displayFrame(unsigned long ms) {
   dataFetch(&ds, FWIDTH, samples);
 
   displaySamples(FWIDTH, samples);
-  IF_CHANGED(heartrate, displayHR, 0);
-  IF_CHANGED(rssi, displayRSSI, 0);
-  IF_CHANGED(rbatt, displayBatt, 70);
-  IF_CHANGED(lbatt, displayBatt, 40);
+  IF_CHANGED(heartrate, displayHR, WWIDTH + 30, 75);
+  IF_CHANGED(leadoff, displayLead, WWIDTH + 31, 105);
+  IF_CHANGED(rssi, displayRSSI, WWIDTH + 35, 20);
+  IF_CHANGED(rbatt, displayBatt, WWIDTH + 31, 50);
+  IF_CHANGED(lbatt, displayBatt, WWIDTH + 31, HEIGHT - 35);
   old_ds = ds;
 }
