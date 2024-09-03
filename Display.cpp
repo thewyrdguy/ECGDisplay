@@ -98,7 +98,7 @@ void displayOff(void) {
 void displayStart(void) {
   spr.fillSprite(TFT_BLACK);
   spr.drawSmoothRoundRect(0, 0, 8, 5, WWIDTH + 8, spr.height() - 1, TFT_NAVY, TFT_BLACK);
-  spr.drawSmoothRoundRect(WWIDTH + 13, 0, 8, 5, WIDTH - WWIDTH - 13, spr.height() - 1, TFT_PURPLE, TFT_BLACK);
+  spr.drawSmoothRoundRect(WWIDTH + 13, 0, 8, 5, WIDTH - WWIDTH - 13, spr.height() - 1, TFT_NAVY, TFT_BLACK);
   lcd_PushColors(0, 0, WIDTH, HEIGHT, (uint16_t *)spr.getPointer());
   animating = true;
 }
@@ -139,7 +139,7 @@ static void displaySamples(int num, int8_t *samples) {
 
 static void displayHR(uint16_t hr, int x, int y) {
   nspr.fillSprite(TFT_BLACK);
-  nspr.drawNumber(hr, nspr.width() / 2, nspr.height() / 2);
+  if (hr) nspr.drawNumber(hr, nspr.width() / 2, nspr.height() / 2);
   lcd_PushColors(x, y, nspr.width(), nspr.height(), (uint16_t *)nspr.getPointer());
 }
 
@@ -181,6 +181,26 @@ static void displayBatt(uint8_t batt, int x, int y) {
   lcd_PushColors(x, y, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
 }
 
+static void displayMmode(enum mmode_e mmode, int x, int y) {
+  int y2 = bspr.height() / 2;
+  int w = bspr.width();
+  int shift;
+  uint16_t colour = mmode == mm_detecting ? TFT_DARKGREY : TFT_BLUE;
+  bspr.fillSprite(TFT_BLACK);
+  if (mmode != mm_continuous) {
+    bspr.fillRect(0, 0, 5, bspr.height(), colour);
+    bspr.fillRect(bspr.width() - 5, 0, 5, bspr.height(), colour);
+    shift = 5;
+    bspr.fillRect(shift + 5, y2 - 2, w - shift - 5, 5, colour);
+    bspr.fillTriangle(shift, y2, shift + 10, 0, shift + 10, bspr.height(), colour);
+  } else {
+    shift = 0;
+    bspr.fillRect(0, y2 - 2, w - 5, 5, colour);
+  }
+  bspr.fillTriangle(w - shift, y2, w - shift - 10, 0, w - shift - 10, bspr.height(), colour);
+  lcd_PushColors(x, y, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
+}
+
 static struct dataset old_ds = { .leadoff = true };
 
 #define IF_CHANGED(FL, FUNC, X, Y) do { \
@@ -202,10 +222,11 @@ void displayFrame(unsigned long ms) {
   dataFetch(&ds, FWIDTH, samples);
 
   displaySamples(FWIDTH, samples);
-  IF_CHANGED(heartrate, displayHR, WWIDTH + 30, 75);
-  IF_CHANGED(leadoff, displayLead, WWIDTH + 31, 105);
+  IF_CHANGED(heartrate, displayHR, WWIDTH + 30, 80);
+  IF_CHANGED(leadoff, displayLead, WWIDTH + 31, 115);
   IF_CHANGED(rssi, displayRSSI, WWIDTH + 35, 20);
   IF_CHANGED(rbatt, displayBatt, WWIDTH + 31, 50);
   IF_CHANGED(lbatt, displayBatt, WWIDTH + 31, HEIGHT - 35);
+  IF_CHANGED(mmode, displayMmode, WWIDTH + 31, 135);
   old_ds = ds;
 }
