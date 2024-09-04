@@ -51,7 +51,8 @@ void processContinuousECG(BLEDevice device, uint8_t len, uint8_t *ptr) {
   }
   dataSend(
     (struct dataset){
-      .volume = vol, .gain = d->gain, .mmode = mm_continuous, .leadoff = d->leadoff, .heartrate = d->hr, .rssi = norm_rssi(device.rssi())
+      .volume = vol, .gain = d->gain, .mstage = ms_measuring, .mmode = mm_continuous,
+      .leadoff = d->leadoff, .heartrate = d->hr, .rssi = norm_rssi(device.rssi())
     },
     nsamp, samps
   );

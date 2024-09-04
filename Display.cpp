@@ -12,7 +12,7 @@
 #error "Detected that PSRAM is not turned on. Please set PSRAM to OPI PSRAM in ArduinoIDE"
 #endif
 
-#define WIDTH  536  // TFT_WIDTH
+#define WIDTH 536   // TFT_WIDTH
 #define HEIGHT 240  // TFT_HEIGHT
 #define FONTNO 4
 #define WWIDTH 450
@@ -53,8 +53,8 @@ void displayInit() {
   animating = false;
 
   pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, HIGH); // Power up AMOLED
-  rm67162_init(); // amoled lcd initialization
+  digitalWrite(PIN_LED, HIGH);  // Power up AMOLED
+  rm67162_init();               // amoled lcd initialization
   lcd_setRotation(1);
 
   spr.createSprite(WIDTH, HEIGHT);
@@ -126,7 +126,7 @@ static void displaySamples(int num, int8_t *samples) {
     }
     if (height == 0) height = 1;
     espr.drawFastVLine(i, 0, espr.height(), TFT_BLACK);
-    espr.drawFastVLine(i, hcoord, height, TFT_GREEN); // on top
+    espr.drawFastVLine(i, hcoord, height, TFT_GREEN);  // on top
     oldvpos = vpos;
   }
   lcd_PushColors(dpos + 5, 5, espr.width(), espr.height(), (uint16_t *)espr.getPointer());
@@ -201,18 +201,29 @@ static void displayMmode(enum mmode_e mmode, int x, int y) {
   lcd_PushColors(x, y, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
 }
 
-static struct dataset old_ds = { .leadoff = true };
+static void displayMstage(enum mstage_e mstage, int x, int y) {
+  uint16_t colour = mstage == ms_stop ? TFT_RED : TFT_BLUE;
 
-#define IF_CHANGED(FL, FUNC, X, Y) do { \
-  if (ds.FL != old_ds.FL) { \
-    Serial.print(#FL " change from "); \
-    Serial.print(old_ds.FL); \
-    Serial.print(" to "); \
-    Serial.println(ds.FL); \
-    old_ds.FL = ds.FL; \
-    FUNC(ds.FL, X, Y); \
-  } \
-} while (0)
+  bspr.fillSprite(TFT_BLACK);
+  for (int i = 0; i < 5; i++) {
+    bspr.fillRect(i * 8, 0, 5, 6, i <= (uint8_t) mstage ? colour : TFT_DARK);
+  }
+  lcd_PushColors(x, y, bspr.width(), bspr.height(), (uint16_t *)bspr.getPointer());
+}
+
+static struct dataset old_ds = { .mstage = ms_stop, .leadoff = true };
+
+#define IF_CHANGED(FL, FUNC, X, Y) \
+  do { \
+    if (ds.FL != old_ds.FL) { \
+      Serial.print(#FL " change from "); \
+      Serial.print(old_ds.FL); \
+      Serial.print(" to "); \
+      Serial.println(ds.FL); \
+      old_ds.FL = ds.FL; \
+      FUNC(ds.FL, X, Y); \
+    } \
+  } while (0)
 
 void displayFrame(unsigned long ms) {
   if (!animating) return;
@@ -228,5 +239,6 @@ void displayFrame(unsigned long ms) {
   IF_CHANGED(rbatt, displayBatt, WWIDTH + 31, 50);
   IF_CHANGED(lbatt, displayBatt, WWIDTH + 31, HEIGHT - 35);
   IF_CHANGED(mmode, displayMmode, WWIDTH + 31, 135);
+  IF_CHANGED(mstage, displayMstage, WWIDTH + 31, 160);
   old_ds = ds;
 }
